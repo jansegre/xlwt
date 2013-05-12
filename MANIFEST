@@ -4,6 +4,13 @@ licences.py
 setup.py
 tests/RKbug.py
 tests/RKbug1.xls
+tests/RKbug.py
+tests/__init__.py
+tests/python.bmp
+tests/test_biffrecords.py
+tests/test_examples.py
+tests/test_unicode.py
+tests/test_utils.py
 xlwt/BIFFRecords.py
 xlwt/Bitmap.py
 xlwt/Cell.py
@@ -22,6 +29,7 @@ xlwt/Workbook.py
 xlwt/Worksheet.py
 xlwt/__init__.py
 xlwt/antlr.py
+xlwt/compat.py
 xlwt/excel-formula.g
 xlwt/doc/xlwt.html
 xlwt/examples/big-16Mb.py

@@ -41,13 +41,14 @@ var.     ln or
 
 
 from struct import pack
+import six
 
 def upack2(s, encoding='ascii'):
     # If not unicode, make it so.
-    if isinstance(s, unicode):
+    if isinstance(s, six.text_type):
         us = s
     else:
-        us = unicode(s, encoding)
+        us = s.decode(encoding)
     # Limit is based on number of content characters
     # (not on number of bytes in packed result)
     len_us = len(us)
@@ -77,8 +78,8 @@ def upack2rt(rt, encoding='ascii'):
     # convert rt strings to unicode if not already unicode
     # also generate the formatting run for the styles added
     for s, fontx in rt:
-        if not isinstance(s, unicode):
-            s = unicode(s, encoding)
+        if not isinstance(s, six.text_type):
+            s = s.decode(encoding)
         us += s
         if fontx is not None:
             # code in Rows.py ensures that
@@ -104,10 +105,10 @@ def upack2rt(rt, encoding='ascii'):
 
 def upack1(s, encoding='ascii'):
     # Same as upack2(), but with a one-byte length field.
-    if isinstance(s, unicode):
+    if isinstance(s, six.text_type):
         us = s
     else:
-        us = unicode(s, encoding)
+        us = s.decode(encoding)
     len_us = len(us)
     if len_us > 255:
         raise Exception('String longer than 255 characters')

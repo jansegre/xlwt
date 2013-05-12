@@ -1,6 +1,8 @@
 # -*- coding: cp1252 -*-
+import six
 from struct import pack
-from UnicodeUtils import upack1, upack2, upack2rt
+from .UnicodeUtils import upack1, upack2, upack2rt
+from . import compat
 
 class SharedStringTable(object):
     _SST_ID = 0x00FC
@@ -20,8 +22,8 @@ class SharedStringTable(object):
         self._current_piece = None
 
     def add_str(self, s):
-        if self.encoding != 'ascii' and not isinstance(s, unicode):
-            s = unicode(s, self.encoding)
+        if isinstance(s, six.binary_type):
+            s = s.decode(self.encoding)
         self._add_calls += 1
         if s not in self._str_indexes:
             idx = len(self._str_indexes) + len(self._rt_indexes)
@@ -31,12 +33,12 @@ class SharedStringTable(object):
             idx = self._str_indexes[s]
             self._tally[idx] += 1
         return idx
-	
+
     def add_rt(self, rt):
         rtList = []
         for s, xf in rt:
-            if self.encoding != 'ascii' and not isinstance(s, unicode):
-                s = unicode(s, self.encoding)
+            if isinstance(s, six.binary_type):
+                s = s.decode(self.encoding)
             rtList.append((s, xf))
         rt = tuple(rtList)
         self._add_calls += 1
@@ -63,16 +65,16 @@ class SharedStringTable(object):
         return self._rt_indexes[rt]
 
     def get_biff_record(self):
-        self._sst_record = ''
+        self._sst_record = six.b('')
         self._continues = [None, None]
         self._current_piece = pack('<II', 0, 0)
-        data = [(idx, s) for s, idx in self._str_indexes.iteritems()]
-        data.extend([(idx, s) for s, idx in self._rt_indexes.iteritems()])
+        data = [(idx, s) for s, idx in six.iteritems(self._str_indexes)]
+        data.extend([(idx, s) for s, idx in six.iteritems(self._rt_indexes)])
         data.sort() # in index order
         for idx, s in data:
             if self._tally[idx] == 0:
-                s = u''
-            if isinstance(s, str) or isinstance(s, unicode):
+                s = six.u('')
+            if isinstance(s, six.text_type):
                 self._add_to_sst(s)
             else:
                 self._add_rt_to_sst(s)
@@ -82,7 +84,7 @@ class SharedStringTable(object):
         self._continues[1] = self._sst_record[8:]
         self._sst_record = None
         self._current_piece = None
-        result = ''.join(self._continues)
+        result = six.b('').join(self._continues)
         self._continues = None
         return result
 
@@ -102,7 +104,7 @@ class SharedStringTable(object):
 
         self._save_atom(u_str[0:atom_len])
         self._save_splitted(u_str[atom_len:], is_unicode_str)
-	
+
     def _add_rt_to_sst(self, rt):
         rt_str, rt_fr = upack2rt(rt, self.encoding)
         is_unicode_str = rt_str[2] == '\x09'
@@ -122,12 +124,12 @@ class SharedStringTable(object):
             self._save_atom(rt_fr[i:i+4])
 
     def _new_piece(self):
-        if self._sst_record == '':
+        if self._sst_record == six.b(''):
             self._sst_record = self._current_piece
         else:
             curr_piece_len = len(self._current_piece)
             self._continues.append(pack('<2H%ds'%curr_piece_len, self._CONTINUE_ID, curr_piece_len, self._current_piece))
-        self._current_piece = ''
+        self._current_piece = six.b('')
 
     def _save_atom(self, s):
         atom_len = len(s)
@@ -167,14 +169,14 @@ class SharedStringTable(object):
 
 class BiffRecord(object):
 
-    _rec_data = '' # class attribute; child classes need to set this.
+    _rec_data = six.b('')  # class attribute; child classes need to set this.
 
     # Sheer waste.
     # def __init__(self):
     #     self._rec_data = ''
 
     def get_rec_id(self):
-        return _REC_ID
+        return self._REC_ID
 
     def get_rec_header(self):
         return pack('<2H', self._REC_ID, len(self._rec_data))
@@ -186,7 +188,7 @@ class BiffRecord(object):
     def get(self):
         # data = self.get_rec_data()
         data = self._rec_data
-        if len(data) > 0x2020: # limit for BIFF7/8
+        if len(data) > 0x2020:  # limit for BIFF7/8
             chunks = []
             pos = 0
             while pos < len(data):
@@ -196,7 +198,7 @@ class BiffRecord(object):
                 pos = chunk_pos
             continues = pack('<2H', self._REC_ID, len(chunks[0])) + chunks[0]
             for chunk in chunks[1:]:
-                continues += pack('<2H%ds'%len(chunk), 0x003C, len(chunk), chunk)
+                continues += pack('<2H%ds' % len(chunk), 0x003C, len(chunk), chunk)
                 # 0x003C -- CONTINUE record id
             return continues
         else:
@@ -218,6 +220,7 @@ class Biff8BOFRecord(BiffRecord):
     6      2    Build year
     8      4    File history flags
     12     4    Lowest Excel version that can read all records in this file
+    060000100DBB
     """
     _REC_ID      = 0x0809
     # stream types
@@ -232,8 +235,8 @@ class Biff8BOFRecord(BiffRecord):
         version  = 0x0600
         build    = 0x0DBB
         year     = 0x07CC
-        file_hist_flags = 0x00L
-        ver_can_read    = 0x06L
+        file_hist_flags = compat.long(0x00)
+        ver_can_read    = compat.long(0x06)
 
         self._rec_data = pack('<4H2I', version, rec_type, build, year, file_hist_flags, ver_can_read)
 
@@ -249,7 +252,7 @@ class InteraceEndRecord(BiffRecord):
     _REC_ID = 0x00E2
 
     def __init__(self):
-        self._rec_data = ''
+        self._rec_data = six.b('')
 
 
 class MMSRecord(BiffRecord):
@@ -270,9 +273,9 @@ class WriteAccessRecord(BiffRecord):
     _REC_ID = 0x005C
 
     def __init__(self, owner):
-        uowner = owner[0:0x30]
+        uowner = six.b(owner[0:0x30])
         uowner_len = len(uowner)
-        self._rec_data = pack('%ds%ds' % (uowner_len, 0x70 - uowner_len), uowner, ' '*(0x70 - uowner_len))
+        self._rec_data = pack('%ds%ds' % (uowner_len, 0x70 - uowner_len), uowner, six.b(' '*(0x70 - uowner_len)))
 
 
 class DSFRecord(BiffRecord):
@@ -370,7 +373,7 @@ class PasswordRecord(BiffRecord):
         """
         Based on the algorithm provided by Daniel Rentz of OpenOffice.
         """
-        if plaintext == "":
+        if plaintext == six.b(''):
             return 0
 
         passwd_hash = 0x0000
@@ -385,7 +388,7 @@ class PasswordRecord(BiffRecord):
         passwd_hash ^= 0xCE4B
         return passwd_hash
 
-    def __init__(self, passwd = ""):
+    def __init__(self, passwd=six.b("")):
         self._rec_data = pack('<H', self.passwd_hash(passwd))
 
 
@@ -412,6 +415,7 @@ class BackupRecord(BiffRecord):
 
     def __init__(self, backup):
         self._rec_data = pack('<H', backup)
+
 
 class HideObjRecord(BiffRecord):
     """
@@ -512,7 +516,7 @@ class EOFRecord(BiffRecord):
     _REC_ID = 0x000A
 
     def __init__(self):
-        self._rec_data = ''
+        self._rec_data = six.b('')
 
 
 class DateModeRecord(BiffRecord):
@@ -650,6 +654,7 @@ class Window1Record(BiffRecord):
                                       active_sheet,
                                       first_tab_index, selected_tabs, tab_width)
 
+
 class FontRecord(BiffRecord):
     """
     WARNING
@@ -729,6 +734,7 @@ class FontRecord(BiffRecord):
         self._rec_data = pack('<5H4B%ds' % uname_len, height, options, colour_index, weight, escapement,
                                                 underline, family, charset, 0x00,
                                                 uname)
+
 
 class NumberFormatRecord(BiffRecord):
     """
@@ -1199,7 +1205,7 @@ class ExtSSTRecord(BiffRecord):
         portion_counter = 0
         while str_counter < len(str_placement):
             str_chunk_num, pos_in_chunk = str_placement[str_counter]
-            if str_chunk_num <> portion_counter:
+            if str_chunk_num != portion_counter:
                 portion_counter = str_chunk_num
                 abs_stream_pos += portions_len[portion_counter-1]
                 #print hex(abs_stream_pos)
@@ -1300,11 +1306,11 @@ class Window2Record(BiffRecord):
                                     grid_colour,
                                     0x00,
                                     preview_magn, normal_magn,
-                                    0x00L)
+                                    compat.long(0x00))
         if scl_magn is not None:
             self._scl_rec = pack('<4H', 0x00A0, 4, scl_magn, 100)
         else:
-            self._scl_rec = ''
+            self._scl_rec = six.b('')
 
     def get(self):
         return self.get_rec_header() + self._rec_data + self._scl_rec
@@ -1439,6 +1445,7 @@ class RowRecord(BiffRecord):
     _REC_ID = 0x0208
 
     def __init__(self, index, first_col, last_col, height_options, options):
+        print('{}, {}, {}, {}, {}'.format(index, first_col, last_col, height_options, options))
         self._rec_data = pack('<6HL', index, first_col, last_col + 1,
                                         height_options,
                                         0x00, 0x00,
@@ -1491,7 +1498,7 @@ class MergedCellsRecord(BiffRecord):
         i = len(merged_list) - 1
         while i >= 0:
             j = 0
-            merged = ''
+            merged = six.b('')
             while (i >= 0) and (j < 0x403):
                 r1, r2, c1, c2 = merged_list[i]
                 merged += pack('<4H', r1, r2, c1, c2)
@@ -2387,7 +2394,7 @@ class ExternSheetRecord(BiffRecord):
                 header = pack("<HHH", self._REC_ID, 6 * krefs + 2, nrefs)
             res.append(header)
             res.extend([pack("<HHH", *r) for r in chunk])
-        return ''.join(res)
+        return six.b('').join(res)
 
 class SupBookRecord(BiffRecord):
     """

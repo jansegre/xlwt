@@ -30,6 +30,16 @@ class WriteAccessRecordTestCase(unittest.TestCase):
         biff = BIFFRecords.WriteAccessRecord('Hans').get()
         self.assertEqual(six.b('\\\x00p\x00Hans                                                                                                            '), biff)
 
+
+class PasswordRecordTestCase(unittest.TestCase):
+    def test_class(self):
+        biff = BIFFRecords.PasswordRecord('frobozical').get()
+        self.assertEqual(six.b('\x13\x00\x02\x00\xff\xfc'), biff)
+
+    def test_empty_bytes(self):
+        biff = BIFFRecords.PasswordRecord(six.b('')).get()
+        self.assertEqual(six.b('\x13\x00\x02\x00\x00\x00'), biff)
+
 if __name__ == '__main__':
     unittest.main()
 

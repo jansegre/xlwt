@@ -2,8 +2,9 @@
 
 # Utilities for work with reference to cells and with sheetnames
 
+import six
 import re
-from ExcelMagic import MAX_ROW, MAX_COL
+from .ExcelMagic import MAX_ROW, MAX_COL
 
 _re_cell_ex = re.compile(r"(\$?)([A-I]?[A-Z])(\$?)(\d+)", re.IGNORECASE)
 _re_row_range = re.compile(r"\$?(\d+):\$?(\d+)")
@@ -17,7 +18,7 @@ def col_by_name(colname):
     """
     col = 0
     power = 1
-    for i in xrange(len(colname)-1, -1, -1):
+    for i in six.moves.xrange(len(colname)-1, -1, -1):
         ch = colname[i]
         col += (ord(ch) - ord('A') + 1) * power
         power *= 26

@@ -1,12 +1,14 @@
 # -*- coding: windows-1252 -*-
 
-import BIFFRecords
-import Style
-from Cell import StrCell, BlankCell, NumberCell, FormulaCell, MulBlankCell, BooleanCell, ErrorCell, \
+from . import compat
+import six
+from . import BIFFRecords
+from . import Style
+from .Cell import StrCell, BlankCell, NumberCell, FormulaCell, MulBlankCell, BooleanCell, ErrorCell, \
     _get_cells_biff_data_mul
-import ExcelFormula
+from . import ExcelFormula
 import datetime as dt
-from Formatting import Font
+from .Formatting import Font
 
 try:
     from decimal import Decimal
@@ -165,11 +167,11 @@ class Row(object):
 
     def insert_mulcells(self, colx1, colx2, cell_obj):
         self.insert_cell(colx1, cell_obj)
-        for col_index in xrange(colx1+1, colx2+1):
+        for col_index in six.moves.xrange(colx1+1, colx2+1):
             self.insert_cell(col_index, None)
 
     def get_cells_biff_data(self):
-        cell_items = [item for item in self.__cells.iteritems() if item[1] is not None]
+        cell_items = [item for item in six.iteritems(self.__cells) if item[1] is not None]
         cell_items.sort() # in column order
         return _get_cells_biff_data_mul(self.__idx, cell_items)
         # previously:
@@ -234,7 +236,7 @@ class Row(object):
         self.__adjust_height(style)
         self.__adjust_bound_col_idx(col)
         style_index = self.__parent_wb.add_style(style)
-        if isinstance(label, basestring):
+        if isinstance(label, six.string_types) or isinstance(label, six.binary_type) or isinstance(label, six.text_type):
             if len(label) > 0:
                 self.insert_cell(col,
                     StrCell(self.__idx, col, style_index, self.__parent_wb.add_str(label))
@@ -243,7 +245,7 @@ class Row(object):
                 self.insert_cell(col, BlankCell(self.__idx, col, style_index))
         elif isinstance(label, bool): # bool is subclass of int; test bool first
             self.insert_cell(col, BooleanCell(self.__idx, col, style_index, label))
-        elif isinstance(label, (float, int, long, Decimal)):
+        elif isinstance(label, (float, int, compat.long, Decimal)):
             self.insert_cell(col, NumberCell(self.__idx, col, style_index, label))
         elif isinstance(label, (dt.datetime, dt.date, dt.time)):
             date_number = self.__excel_date_dt(label)

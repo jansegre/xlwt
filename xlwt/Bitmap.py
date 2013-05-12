@@ -4,7 +4,8 @@
 #  Portions are Copyright (c) 2004 Evgeny Filatov <fufff@users.sourceforge.net>
 #  Portions are Copyright (c) 2002-2004 John McNamara (Perl Spreadsheet::WriteExcel)
 
-from BIFFRecords import BiffRecord
+import six
+from .BIFFRecords import BiffRecord
 from struct import pack, unpack
 
 
@@ -192,7 +193,7 @@ def _process_bitmap(bitmap):
 
     """
     # Open file and binmode the data in case the platform needs it.
-    fh = file(bitmap, "rb")
+    fh = open(bitmap, "rb")
     try:
         # Slurp the file into a string.
         data = fh.read()
@@ -202,7 +203,7 @@ def _process_bitmap(bitmap):
     if len(data) <= 0x36:
         raise Exception("bitmap doesn't contain enough data.")
     # The first 2 bytes are used to identify the bitmap.
-    if (data[:2] != "BM"):
+    if (data[:2] != six.b("BM")):
         raise Exception("bitmap doesn't appear to to be a valid bitmap image.")
     # Remove bitmap data: ID.
     data = data[2:]
